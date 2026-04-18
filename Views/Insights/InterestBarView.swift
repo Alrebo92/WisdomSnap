@@ -20,7 +20,7 @@ struct InterestBarView: View {
                         .fill(.secondary.opacity(0.2))
                         .frame(height: 8)
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(.accent)
+                        .fill(.accentColor)
                         .frame(width: geo.size.width * weight, height: 8)
                         .animation(.easeOut, value: weight)
                 }
