@@ -39,9 +39,32 @@ targets:
         NSPhotoLibraryUsageDescription: "スクショを分析して格言・習慣を抽出するために使用します"
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+    dependencies:
+      - target: WisdomSnapWidget
+        embed: true
     scheme:
       testTargets:
         - WisdomSnapTests
+
+  WisdomSnapWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: WisdomSnapWidget
+      - path: Services/LocalSuggestionDatabase.swift
+      - path: Models/WidgetSuggestion.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.alrebo92.WisdomSnap.widget
+        INFOPLIST_FILE: WisdomSnapWidget/Info.plist
+    info:
+      path: WisdomSnapWidget/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
 
   WisdomSnapTests:
     type: bundle.unit-test

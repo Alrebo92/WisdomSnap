@@ -19,6 +19,8 @@ struct ContentView: View {
                 .tabItem { Label("ライブラリ", systemImage: "photo.stack") }
             InsightsView()
                 .tabItem { Label("分析", systemImage: "chart.bar.xaxis") }
+            SettingsView()
+                .tabItem { Label("設定", systemImage: "gearshape") }
         }
     }
 }

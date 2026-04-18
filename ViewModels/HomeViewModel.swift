@@ -52,6 +52,10 @@ class HomeViewModel {
                     lastUsedLocalEngine = usedLocal
                     loadSuggestions(modelContext: modelContext)
                     isGenerating = false
+                    // ウィジェットに今日のトップ提案を反映
+                    if let top = newSuggestions.first {
+                        WidgetDataService.updateTodaySuggestion(top)
+                    }
                 }
 
             } catch {
