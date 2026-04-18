@@ -61,6 +61,15 @@ struct HomeView: View {
                 } else {
                     Image(systemName: "sparkles")
                     Text("スキャン内容を分析して提案を生成")
+                    Spacer()
+                    if viewModel.lastUsedLocalEngine {
+                        Text("オフライン")
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(.white.opacity(0.25))
+                            .clipShape(Capsule())
+                    }
                 }
             }
             .frame(maxWidth: .infinity)

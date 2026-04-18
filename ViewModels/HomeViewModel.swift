@@ -7,6 +7,7 @@ class HomeViewModel {
     var profile: UserInterestProfile?
     var isGenerating = false
     var errorMessage: String?
+    var lastUsedLocalEngine = false  // デバッグ・UI表示用
 
     func load(modelContext: ModelContext) {
         loadProfile(modelContext: modelContext)
@@ -38,9 +39,9 @@ class HomeViewModel {
                     try? modelContext.save()
                 }
 
-                // 最近のコンテンツをもとに提案生成
+                // ハイブリッドエンジンで提案生成
                 let recent = await fetchRecentContents(modelContext: modelContext, limit: 20)
-                let newSuggestions = try await ClaudeService.generateSuggestions(
+                let (newSuggestions, usedLocal) = try await HybridSuggestionEngine.generateSuggestions(
                     profile: profile,
                     recentContents: recent
                 )
@@ -48,6 +49,7 @@ class HomeViewModel {
                 await MainActor.run {
                     newSuggestions.forEach { modelContext.insert($0) }
                     try? modelContext.save()
+                    lastUsedLocalEngine = usedLocal
                     loadSuggestions(modelContext: modelContext)
                     isGenerating = false
                 }
