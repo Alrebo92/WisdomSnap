@@ -41,7 +41,7 @@ struct HomeView: View {
             if let goal = profile.idealGoals.first {
                 Label(goal, systemImage: "target")
                     .font(.subheadline)
-                    .foregroundStyle(.accentColor)
+                    .foregroundStyle(Color.accentColor)
             }
             Text("スキャン済み: \(profile.totalScannedCount)件")
                 .font(.caption)
@@ -74,7 +74,7 @@ struct HomeView: View {
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(.accentColor)
+            .background(Color.accentColor)
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 14))
         }

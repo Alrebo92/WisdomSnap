@@ -93,7 +93,7 @@ struct WisdomWidgetSmallView: View {
 
     private var gradient: LinearGradient {
         LinearGradient(
-            colors: [Color.accentColorColor, Color.accentColorColor.opacity(0.7)],
+            colors: [Color.accentColor, Color.accentColor.opacity(0.7)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
@@ -145,7 +145,7 @@ struct WisdomWidgetMediumView: View {
 
     private var gradient: LinearGradient {
         LinearGradient(
-            colors: [Color.accentColorColor, Color.accentColorColor.opacity(0.6)],
+            colors: [Color.accentColor, Color.accentColor.opacity(0.6)],
             startPoint: .leading,
             endPoint: .trailing
         )

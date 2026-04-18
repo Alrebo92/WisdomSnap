@@ -9,7 +9,7 @@ struct StatCardView: View {
         VStack(alignment: .leading, spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundStyle(.accentColor)
+                .foregroundStyle(Color.accentColor)
             Text(value)
                 .font(.title.bold())
             Text(title)

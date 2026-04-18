@@ -16,7 +16,7 @@ struct SuggestionCardView: View {
                     try? modelContext.save()
                 } label: {
                     Image(systemName: suggestion.isBookmarked ? "bookmark.fill" : "bookmark")
-                        .foregroundStyle(suggestion.isBookmarked ? .accentColor : .secondary)
+                        .foregroundStyle(suggestion.isBookmarked ? Color.accentColor : .secondary)
                 }
                 .buttonStyle(.plain)
             }
@@ -28,8 +28,8 @@ struct SuggestionCardView: View {
                 .font(.caption)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
-                .background(.accentColor.opacity(0.12))
-                .foregroundStyle(.accentColor)
+                .background(Color.accentColor.opacity(0.12))
+                .foregroundStyle(Color.accentColor)
                 .clipShape(Capsule())
         }
         .padding()

@@ -75,7 +75,7 @@ struct SettingsView: View {
         Section("ウィジェット") {
             HStack {
                 Image(systemName: "rectangle.3.group")
-                    .foregroundStyle(.accentColor)
+                    .foregroundStyle(Color.accentColor)
                 Text("ホーム画面に追加する方法")
             }
             Text("ホーム画面を長押し → 「+」ボタン → WisdomSnap を検索して追加")

@@ -25,7 +25,7 @@ struct ContentDetailView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("テーマ")
                             .font(.headline)
-                        TagFlowView(tags: content.themes, color: .accentColor)
+                        TagFlowView(tags: content.themes, color: Color.accentColor)
                     }
                 }
 

@@ -18,7 +18,7 @@ struct ScreenshotPreviews: View {
     var screenshot1: some View {
         ZStack {
             LinearGradient(
-                colors: [Color.accentColorColor, Color.accentColorColor.opacity(0.6)],
+                colors: [Color.accentColor, Color.accentColor.opacity(0.6)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -152,7 +152,7 @@ struct ScreenshotPreviews: View {
                 }
                 .padding(16)
                 .frame(width: 160, height: 160)
-                .background(LinearGradient(colors: [.accentColorColor, .accentColorColor.opacity(0.6)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .background(LinearGradient(colors: [Color.accentColor, Color.accentColor.opacity(0.6)], startPoint: .topLeading, endPoint: .bottomTrailing))
                 .clipShape(RoundedRectangle(cornerRadius: 22))
 
                 Text("ホーム画面ウィジェット対応")
@@ -172,7 +172,7 @@ struct ScreenshotPreviews: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundStyle(.accentColor)
+                .foregroundStyle(Color.accentColor)
                 .frame(width: 44)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.headline)
@@ -191,8 +191,8 @@ struct ScreenshotPreviews: View {
             Text(category)
                 .font(.caption)
                 .padding(.horizontal, 10).padding(.vertical, 4)
-                .background(Color.accentColorColor.opacity(0.12))
-                .foregroundStyle(.accentColor)
+                .background(Color.accentColor.opacity(0.12))
+                .foregroundStyle(Color.accentColor)
                 .clipShape(Capsule())
         }
         .padding()
@@ -212,7 +212,7 @@ struct ScreenshotPreviews: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4).fill(.secondary.opacity(0.2)).frame(height: 8)
-                    RoundedRectangle(cornerRadius: 4).fill(.accentColor).frame(width: geo.size.width * weight, height: 8)
+                    RoundedRectangle(cornerRadius: 4).fill(Color.accentColor).frame(width: geo.size.width * weight, height: 8)
                 }
             }.frame(height: 8)
         }
