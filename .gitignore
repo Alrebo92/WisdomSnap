@@ -1,4 +1,6 @@
 # Xcode
+# .xcodeproj は xcodegen で再生成できるためコミットしない
+*.xcodeproj/
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
 *.xcworkspace/contents.xcworkspacedata
