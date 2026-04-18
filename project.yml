@@ -52,6 +52,7 @@ targets:
     sources:
       - path: WisdomSnapWidget
       - path: Services/LocalSuggestionDatabase.swift
+      - path: Models/SuggestionType.swift
       - path: Models/WidgetSuggestion.swift
     settings:
       base:
