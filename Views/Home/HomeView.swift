@@ -13,6 +13,8 @@ struct HomeView: View {
                         profileHeaderView(profile: profile)
                     }
 
+                    analyzeButton
+
                     if viewModel.suggestions.isEmpty {
                         emptyStateView
                     } else {
@@ -25,6 +27,11 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
                 viewModel.load(modelContext: modelContext)
+            }
+            .alert("エラー", isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button("OK") { viewModel.errorMessage = nil }
+            } message: {
+                Text(viewModel.errorMessage ?? "")
             }
         }
     }
@@ -42,23 +49,53 @@ struct HomeView: View {
         }
     }
 
+    private var analyzeButton: some View {
+        Button {
+            viewModel.analyzeAndRefresh(modelContext: modelContext)
+        } label: {
+            HStack {
+                if viewModel.isGenerating {
+                    ProgressView()
+                        .tint(.white)
+                    Text("分析中...")
+                } else {
+                    Image(systemName: "sparkles")
+                    Text("スキャン内容を分析して提案を生成")
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(.accent)
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .disabled(viewModel.isGenerating)
+    }
+
     private var emptyStateView: some View {
         VStack(spacing: 16) {
             Image(systemName: "photo.stack")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
-            Text("スクショをスキャンして\nあなたの興味を分析しましょう")
+            Text("ライブラリタブからスクショをスキャンして\n「分析」ボタンを押してください")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
+                .font(.subheadline)
         }
         .frame(maxWidth: .infinity)
-        .padding(.top, 60)
+        .padding(.top, 40)
     }
 
     private var suggestionsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("今日の提案")
-                .font(.headline)
+            HStack {
+                Text("今日の提案")
+                    .font(.headline)
+                Spacer()
+                Text("\(viewModel.suggestions.count)件")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             ForEach(viewModel.suggestions.prefix(5)) { suggestion in
                 SuggestionCardView(suggestion: suggestion)
             }
