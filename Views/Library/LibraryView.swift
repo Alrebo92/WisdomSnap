@@ -30,11 +30,28 @@ struct LibraryView: View {
             }
             .overlay {
                 if viewModel.isScanning {
-                    ProgressView("スキャン中...")
-                        .padding()
-                        .background(.regularMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    VStack(spacing: 12) {
+                        ProgressView()
+                        Text(viewModel.progressText)
+                            .font(.subheadline)
+                    }
+                    .padding(20)
+                    .background(.regularMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
+            }
+            .alert("アクセスが必要です", isPresented: .constant(viewModel.errorMessage != nil)) {
+                Button("設定を開く") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                    viewModel.errorMessage = nil
+                }
+                Button("キャンセル", role: .cancel) {
+                    viewModel.errorMessage = nil
+                }
+            } message: {
+                Text(viewModel.errorMessage ?? "")
             }
         }
     }

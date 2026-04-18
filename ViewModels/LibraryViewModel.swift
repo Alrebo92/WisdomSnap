@@ -1,49 +1,70 @@
 import SwiftUI
 import SwiftData
+import Photos
 
 @Observable
 class LibraryViewModel {
     var isScanning = false
+    var scanProgress: (current: Int, total: Int) = (0, 0)
+    var authorizationStatus: PHAuthorizationStatus = .notDetermined
     var errorMessage: String?
 
+    var progressText: String {
+        guard scanProgress.total > 0 else { return "スキャン中..." }
+        return "\(scanProgress.current) / \(scanProgress.total) 枚"
+    }
+
     func startScan(modelContext: ModelContext) {
-        // Phase A: PhotoScanService を呼び出してスキャン実装予定
-        // 現時点ではサンプルデータで動作確認用
-        isScanning = true
         Task {
-            try? await Task.sleep(for: .seconds(1.5))
-            await MainActor.run {
-                insertSampleData(modelContext: modelContext)
-                isScanning = false
+            await checkAndRequestAuthorization()
+            guard authorizationStatus == .authorized || authorizationStatus == .limited else {
+                await MainActor.run {
+                    errorMessage = "写真へのアクセスを許可してください（設定 > WisdomSnap）"
+                }
+                return
             }
+            await performScan(modelContext: modelContext)
         }
     }
 
-    private func insertSampleData(modelContext: ModelContext) {
-        let samples: [ScannedContent] = [
-            ScannedContent(
-                localIdentifier: UUID().uuidString,
-                extractedText: "成功の鍵は、失敗を恐れずに行動し続けることだ。",
-                themes: ["マインドセット", "成功"],
-                keywords: ["行動", "失敗", "成功"],
-                isScreenshot: true
-            ),
-            ScannedContent(
-                localIdentifier: UUID().uuidString,
-                extractedText: "毎朝5分の瞑想があなたの一日を変える。静かな時間が創造性を生む。",
-                themes: ["習慣", "健康"],
-                keywords: ["瞑想", "朝習慣", "創造性"],
-                isScreenshot: true
-            ),
-            ScannedContent(
-                localIdentifier: UUID().uuidString,
-                extractedText: "読んだ本の内容を人に説明できなければ、本当に理解したとは言えない。",
-                themes: ["学習", "読書"],
-                keywords: ["学習", "理解", "読書"],
-                isScreenshot: false
-            )
-        ]
-        samples.forEach { modelContext.insert($0) }
-        try? modelContext.save()
+    // MARK: - Private
+
+    private func checkAndRequestAuthorization() async {
+        let granted = await PhotoScanService.requestAuthorization()
+        await MainActor.run {
+            authorizationStatus = granted
+                ? .authorized
+                : PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        }
+    }
+
+    private func performScan(modelContext: ModelContext) async {
+        await MainActor.run { isScanning = true }
+
+        // 処理済みの識別子を取得（重複スキップ）
+        let processedIds = await fetchProcessedIdentifiers(modelContext: modelContext)
+
+        let newContents = await PhotoScanService.scanPhotoLibrary(
+            processedIdentifiers: processedIds
+        ) { [weak self] current, total in
+            Task { @MainActor in
+                self?.scanProgress = (current, total)
+            }
+        }
+
+        await MainActor.run {
+            newContents.forEach { modelContext.insert($0) }
+            try? modelContext.save()
+            isScanning = false
+            scanProgress = (0, 0)
+        }
+    }
+
+    private func fetchProcessedIdentifiers(modelContext: ModelContext) async -> Set<String> {
+        await MainActor.run {
+            let descriptor = FetchDescriptor<ScannedContent>()
+            let existing = (try? modelContext.fetch(descriptor)) ?? []
+            return Set(existing.map(\.localIdentifier))
+        }
     }
 }
