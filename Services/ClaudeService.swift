@@ -151,8 +151,15 @@ class ClaudeService {
             throw ClaudeServiceError.networkError(error)
         }
 
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+        guard let http = response as? HTTPURLResponse else {
             throw ClaudeServiceError.invalidResponse
+        }
+        guard http.statusCode == 200 else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw ClaudeServiceError.networkError(
+                NSError(domain: "ClaudeAPI", code: http.statusCode,
+                        userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode): \(body.prefix(200))"])
+            )
         }
 
         // レスポンスから text を取り出す
