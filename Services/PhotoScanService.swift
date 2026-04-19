@@ -14,15 +14,12 @@ class PhotoScanService {
 
     // MARK: - スクリーンショット判定
 
-    /// PHAsset のメタデータからスクリーンショットか判定
     static func isScreenshot(_ asset: PHAsset) -> Bool {
         asset.mediaSubtypes.contains(.photoScreenshot)
     }
 
     // MARK: - テキスト検出（高速フィルタ）
 
-    /// 画像にテキストが十分含まれているか簡易チェック
-    /// - 文字数が minCharCount 未満 → 景色・食事写真と判断してスキップ
     static func hasSignificantText(in image: UIImage, minCharCount: Int = 20) async -> Bool {
         guard let cgImage = image.cgImage else { return false }
 
@@ -39,10 +36,8 @@ class PhotoScanService {
                     .count
                 continuation.resume(returning: totalChars >= minCharCount)
             }
-            // 高速モードで最初のパスだけ流す
             request.recognitionLevel = .fast
             request.recognitionLanguages = ["ja", "en"]
-
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
             try? handler.perform([request])
         }
@@ -50,7 +45,6 @@ class PhotoScanService {
 
     // MARK: - OCR（精度優先）
 
-    /// 画像からテキストを抽出する
     static func extractText(from image: UIImage) async -> String {
         guard let cgImage = image.cgImage else { return "" }
 
@@ -69,7 +63,6 @@ class PhotoScanService {
             request.recognitionLevel = .accurate
             request.recognitionLanguages = ["ja", "en"]
             request.usesLanguageCorrection = true
-
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
             try? handler.perform([request])
         }
@@ -77,54 +70,44 @@ class PhotoScanService {
 
     // MARK: - ライブラリスキャン
 
-    /// 写真ライブラリをスキャンして ScannedContent を生成する
-    /// - Parameters:
-    ///   - processedIdentifiers: 処理済みの localIdentifier（重複スキップ用）
-    ///   - progress: 進捗コールバック (処理済み件数, 総件数)
-    /// - Returns: テキストを含む新規 ScannedContent の配列
+    /// Sendable な ScannedContentData を返す（SwiftDataモデルは非同期境界をまたがせない）
     static func scanPhotoLibrary(
         processedIdentifiers: Set<String> = [],
-        progress: @escaping (Int, Int) -> Void = { _, _ in }
-    ) async -> [ScannedContent] {
+        progress: @escaping @Sendable (Int, Int) -> Void = { _, _ in }
+    ) async -> [ScannedContentData] {
 
-        // 全写真を取得（新しい順）
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         let assets = PHAsset.fetchAssets(with: .image, options: fetchOptions)
 
         let total = assets.count
-        var results: [ScannedContent] = []
+        var results: [ScannedContentData] = []
         var processed = 0
 
-        await withTaskGroup(of: ScannedContent?.self) { group in
-            // 並列数を制限してメモリを節約
+        await withTaskGroup(of: ScannedContentData?.self) { group in
             let batchSize = 5
             var index = 0
 
-            while index < min(total, 300) {  // 最新300枚を上限に処理
+            while index < min(total, 300) {
                 let batchEnd = min(index + batchSize, total)
 
                 for i in index..<batchEnd {
                     let asset = assets.object(at: i)
-
-                    // 処理済みはスキップ
                     guard !processedIdentifiers.contains(asset.localIdentifier) else {
                         processed += 1
                         progress(processed, total)
                         continue
                     }
-
                     group.addTask {
                         await Self.processAsset(asset)
                     }
                 }
 
-                // バッチ分の結果を回収
                 for await result in group {
                     processed += 1
                     progress(processed, total)
-                    if let content = result {
-                        results.append(content)
+                    if let data = result {
+                        results.append(data)
                     }
                 }
 
@@ -137,28 +120,24 @@ class PhotoScanService {
 
     // MARK: - Private
 
-    private static func processAsset(_ asset: PHAsset) async -> ScannedContent? {
+    private static func processAsset(_ asset: PHAsset) async -> ScannedContentData? {
         let screenshot = isScreenshot(asset)
 
-        // サムネイル取得（フィルタ用・保存用）
         guard let image = await fetchImage(asset: asset, targetSize: CGSize(width: 800, height: 800)) else {
             return nil
         }
 
-        // スクリーンショットでない場合は高速テキスト検出でフィルタ
         if !screenshot {
             let hasText = await hasSignificantText(in: image, minCharCount: 30)
             guard hasText else { return nil }
         }
 
-        // OCRでテキスト抽出
         let text = await extractText(from: image)
         guard text.count >= 20 else { return nil }
 
-        // サムネイル用に小さいデータを保存
         let thumbnailData = image.jpegData(compressionQuality: 0.5)
 
-        return ScannedContent(
+        return ScannedContentData(
             localIdentifier: asset.localIdentifier,
             extractedText: text,
             capturedDate: asset.creationDate ?? .now,

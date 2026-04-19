@@ -52,8 +52,10 @@ class LibraryViewModel {
             }
         }
 
+        // ScannedContentData → ScannedContent に変換してMainActorで保存
+        let models = newContents.map { $0.toModel() }
         await MainActor.run {
-            newContents.forEach { modelContext.insert($0) }
+            models.forEach { modelContext.insert($0) }
             try? modelContext.save()
             isScanning = false
             scanProgress = (0, 0)
