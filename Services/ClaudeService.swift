@@ -19,7 +19,7 @@ enum ClaudeServiceError: LocalizedError {
 class ClaudeService {
 
     private static let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
-    private static let model    = "claude-haiku-4-5-20251001"
+    private static let model    = "claude-3-5-haiku-20241022"
 
     // MARK: - テキスト分析
 
