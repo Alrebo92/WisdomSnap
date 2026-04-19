@@ -1,73 +1,67 @@
 import SwiftUI
 import SwiftData
 
+@MainActor
 @Observable
 class HomeViewModel {
     var suggestions: [Suggestion] = []
     var profile: UserInterestProfile?
     var isGenerating = false
     var errorMessage: String?
-    var lastUsedLocalEngine = false  // デバッグ・UI表示用
+    var lastUsedLocalEngine = false
 
     func load(modelContext: ModelContext) {
         loadProfile(modelContext: modelContext)
         loadSuggestions(modelContext: modelContext)
     }
 
-    /// 新しくスキャンされたコンテンツを分析してプロファイルと提案を更新
     func analyzeAndRefresh(modelContext: ModelContext) {
         guard let profile else { return }
         isGenerating = true
 
         Task {
             do {
-                // 未分析コンテンツ（themes が空）を取得
-                let unanalyzed = await fetchUnanalyzedContents(modelContext: modelContext)
+                // 未分析コンテンツのテキストだけ取り出す（Sendable な String）
+                let unanalyzed = fetchUnanalyzedContents(modelContext: modelContext)
+                let texts = unanalyzed.map { $0.extractedText }
 
-                // テーマ・キーワード抽出
-                for content in unanalyzed {
-                    let (themes, keywords) = try await ClaudeService.analyzeContent(content.extractedText)
-                    await MainActor.run {
-                        content.themes   = themes
-                        content.keywords = keywords
-                    }
+                // ClaudeService 呼び出しはメインアクター外でも OK（Sendable な String を渡すだけ）
+                var analysisResults: [(themes: [String], keywords: [String])] = []
+                for text in texts {
+                    let result = try await ClaudeService.analyzeContent(text)
+                    analysisResults.append(result)
                 }
 
-                // プロファイルのウェイト更新
-                await MainActor.run {
-                    ClaudeService.updateInterestProfile(profile: profile, newContents: unanalyzed)
-                    try? modelContext.save()
+                // 結果をメインアクター上のモデルに書き戻す
+                for (i, content) in unanalyzed.enumerated() where i < analysisResults.count {
+                    content.themes   = analysisResults[i].themes
+                    content.keywords = analysisResults[i].keywords
                 }
+                ClaudeService.updateInterestProfile(profile: profile, newContents: unanalyzed)
+                try? modelContext.save()
 
-                // ハイブリッドエンジンで提案生成
-                let recent = await fetchRecentContents(modelContext: modelContext, limit: 20)
+                // 提案生成（プロファイルのコピーだけ渡す）
+                let recent = fetchRecentContents(modelContext: modelContext, limit: 20)
                 let (newSuggestions, usedLocal) = try await HybridSuggestionEngine.generateSuggestions(
                     profile: profile,
                     recentContents: recent
                 )
 
-                await MainActor.run {
-                    newSuggestions.forEach { modelContext.insert($0) }
-                    try? modelContext.save()
-                    lastUsedLocalEngine = usedLocal
-                    loadSuggestions(modelContext: modelContext)
-                    isGenerating = false
-                    // ウィジェットに今日のトップ提案を反映
-                    if let top = newSuggestions.first {
-                        WidgetDataService.updateTodaySuggestion(top)
-                    }
-                }
+                newSuggestions.forEach { modelContext.insert($0) }
+                try? modelContext.save()
+                lastUsedLocalEngine = usedLocal
+                loadSuggestions(modelContext: modelContext)
+                if let top = newSuggestions.first { WidgetDataService.updateTodaySuggestion(top) }
+                isGenerating = false
 
             } catch {
-                await MainActor.run {
-                    errorMessage = error.localizedDescription
-                    isGenerating = false
-                }
+                errorMessage = error.localizedDescription
+                isGenerating = false
             }
         }
     }
 
-    // MARK: - Private
+    // MARK: - Private（全て @MainActor 上で実行される）
 
     private func loadProfile(modelContext: ModelContext) {
         let descriptor = FetchDescriptor<UserInterestProfile>()
@@ -86,21 +80,17 @@ class HomeViewModel {
         suggestions = (try? modelContext.fetch(descriptor)) ?? []
     }
 
-    private func fetchUnanalyzedContents(modelContext: ModelContext) async -> [ScannedContent] {
-        await MainActor.run {
-            let descriptor = FetchDescriptor<ScannedContent>()
-            let all = (try? modelContext.fetch(descriptor)) ?? []
-            return all.filter { $0.themes.isEmpty && !$0.extractedText.isEmpty }
-        }
+    private func fetchUnanalyzedContents(modelContext: ModelContext) -> [ScannedContent] {
+        let descriptor = FetchDescriptor<ScannedContent>()
+        let all = (try? modelContext.fetch(descriptor)) ?? []
+        return all.filter { $0.themes.isEmpty && !$0.extractedText.isEmpty }
     }
 
-    private func fetchRecentContents(modelContext: ModelContext, limit: Int) async -> [ScannedContent] {
-        await MainActor.run {
-            var descriptor = FetchDescriptor<ScannedContent>(
-                sortBy: [SortDescriptor(\.processedDate, order: .reverse)]
-            )
-            descriptor.fetchLimit = limit
-            return (try? modelContext.fetch(descriptor)) ?? []
-        }
+    private func fetchRecentContents(modelContext: ModelContext, limit: Int) -> [ScannedContent] {
+        var descriptor = FetchDescriptor<ScannedContent>(
+            sortBy: [SortDescriptor(\.processedDate, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        return (try? modelContext.fetch(descriptor)) ?? []
     }
 }

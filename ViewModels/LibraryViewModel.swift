@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import Photos
 
+@MainActor
 @Observable
 class LibraryViewModel {
     var isScanning = false
@@ -16,57 +17,43 @@ class LibraryViewModel {
 
     func startScan(modelContext: ModelContext) {
         Task {
-            await checkAndRequestAuthorization()
-            guard authorizationStatus == .authorized || authorizationStatus == .limited else {
-                await MainActor.run {
-                    errorMessage = "写真へのアクセスを許可してください（設定 > WisdomSnap）"
-                }
-                return
-            }
-            await performScan(modelContext: modelContext)
-        }
-    }
-
-    // MARK: - Private
-
-    private func checkAndRequestAuthorization() async {
-        let granted = await PhotoScanService.requestAuthorization()
-        await MainActor.run {
+            let granted = await PhotoScanService.requestAuthorization()
             authorizationStatus = granted
                 ? .authorized
                 : PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        }
-    }
 
-    private func performScan(modelContext: ModelContext) async {
-        await MainActor.run { isScanning = true }
-
-        // 処理済みの識別子を取得（重複スキップ）
-        let processedIds = await fetchProcessedIdentifiers(modelContext: modelContext)
-
-        let newContents = await PhotoScanService.scanPhotoLibrary(
-            processedIdentifiers: processedIds
-        ) { [weak self] current, total in
-            Task { @MainActor in
-                self?.scanProgress = (current, total)
+            guard authorizationStatus == .authorized || authorizationStatus == .limited else {
+                errorMessage = "写真へのアクセスを許可してください（設定 > WisdomSnap）"
+                return
             }
-        }
 
-        // ScannedContentData → ScannedContent に変換してMainActorで保存
-        let models = newContents.map { $0.toModel() }
-        await MainActor.run {
-            models.forEach { modelContext.insert($0) }
+            isScanning = true
+
+            // 処理済みIDをメインアクター上で取得
+            let processedIds = fetchProcessedIdentifiers(modelContext: modelContext)
+
+            // スキャンは非同期・Sendable な ScannedContentData を受け取る
+            let scannedData = await PhotoScanService.scanPhotoLibrary(
+                processedIdentifiers: processedIds
+            ) { [weak self] current, total in
+                Task { @MainActor [weak self] in
+                    self?.scanProgress = (current, total)
+                }
+            }
+
+            // メインアクター上で ScannedContent に変換して保存
+            scannedData.map { $0.toModel() }.forEach { modelContext.insert($0) }
             try? modelContext.save()
             isScanning = false
             scanProgress = (0, 0)
         }
     }
 
-    private func fetchProcessedIdentifiers(modelContext: ModelContext) async -> Set<String> {
-        await MainActor.run {
-            let descriptor = FetchDescriptor<ScannedContent>()
-            let existing = (try? modelContext.fetch(descriptor)) ?? []
-            return Set(existing.map(\.localIdentifier))
-        }
+    // MARK: - Private
+
+    private func fetchProcessedIdentifiers(modelContext: ModelContext) -> Set<String> {
+        let descriptor = FetchDescriptor<ScannedContent>()
+        let existing = (try? modelContext.fetch(descriptor)) ?? []
+        return Set(existing.map(\.localIdentifier))
     }
 }
